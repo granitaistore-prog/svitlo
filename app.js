@@ -642,3 +642,335 @@ document.addEventListener('DOMContentLoaded', () => {
     // Перевірка здоров'я API при запуску
     setTimeout(showAPIHealthInfo, 3000);
 });
+// Файл: proxy-server.js (для Node.js)
+const express = require('express');
+const cors = require('cors');
+const fetch = require('node-fetch');
+const app = express();
+
+app.use(cors());
+app.use(express.json());
+
+// Проксі для Укренерго
+app.get('/api/ukrenergo', async (req, res) => {
+    try {
+        const response = await fetch('https://ua.energy/диспетчерська-інформація/');
+        const html = await response.text();
+        
+        // Обробка HTML та повернення JSON
+        const data = parseUkrenergoHTML(html);
+        res.json(data);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Проксі для ДТЕК
+app.get('/api/dtek', async (req, res) => {
+    try {
+        const response = await fetch('https://www.dtek.com.ua/api/outages');
+        const data = await response.json();
+        res.json(data);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Об'єднані дані
+app.get('/api/all-outages', async (req, res) => {
+    try {
+        const [ukrenergo, dtek, yasno] = await Promise.all([
+            fetch('https://ua.energy/диспетчерська-інформація/').then(r => r.text()),
+            fetch('https://www.dtek.com.ua/api/outages').then(r => r.json()),
+            fetch('https://yasno.com.ua/api/outage-info', {
+                method: 'POST',
+                body: JSON.stringify({ action: 'get_outages' })
+            }).then(r => r.json())
+        ]);
+        
+        const processed = processAllData(ukrenergo, dtek, yasno);
+        res.json(processed);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+    console.log(`Проксі-сервер запущено на порті ${PORT}`);
+});
+// Використання публічних API сервісів для даних про відключення
+
+class PublicOutageAPI {
+    constructor() {
+        this.endpoints = {
+            // Український сервіс моніторингу енергосистеми
+            energyMap: 'https://api.energymap.com.ua/v1/outages',
+            
+            // Crowdsourced дані
+            powerOutageUA: 'https://poweroutage.com.ua/api/current',
+            
+            // Міжнародний сервіс (має дані по Україні)
+            electricityMap: 'https://api.electricitymap.org/v3/power-breakdown/latest',
+            
+            // Власний сервер (якщо налаштували)
+            customServer: 'https://ваш-сервер.com/api/outages'
+        };
+    }
+    
+    async fetchFromMultipleSources() {
+        const sources = [
+            this.fetchEnergyMap.bind(this),
+            this.fetchPowerOutageUA.bind(this),
+            this.fetchElectricityMap.bind(this)
+        ];
+        
+        const results = await Promise.allSettled(
+            sources.map(source => source())
+        );
+        
+        return this.mergeSources(results);
+    }
+    
+    async fetchEnergyMap() {
+        try {
+            const response = await fetch(this.endpoints.energyMap);
+            if (!response.ok) throw new Error('EnergyMap недоступний');
+            
+            const data = await response.json();
+            return this.formatEnergyMapData(data);
+        } catch (error) {
+            console.error('EnergyMap помилка:', error);
+            return [];
+        }
+    }
+    
+    async fetchPowerOutageUA() {
+        try {
+            const response = await fetch(this.endpoints.powerOutageUA, {
+                headers: {
+                    'X-API-Key': 'ваш-ключ-якщо-потрібно'
+                }
+            });
+            
+            const data = await response.json();
+            return this.formatPowerOutageData(data);
+        } catch (error) {
+            console.error('PowerOutageUA помилка:', error);
+            return [];
+        }
+    }
+    
+    formatEnergyMapData(data) {
+        // Форматування даних під нашу структуру
+        return data.regions.map(region => ({
+            region: region.name,
+            status: this.mapStatus(region.status),
+            powerDeficit: region.deficit_mw,
+            lastUpdate: region.updated_at,
+            source: 'EnergyMap'
+        }));
+    }
+    
+    mapStatus(statusCode) {
+        const statusMap = {
+            'red': 'no_power',
+            'orange': 'possible',
+            'yellow': 'scheduled',
+            'green': 'has_power'
+        };
+        return statusMap[statusCode] || 'unknown';
+    }
+}
+// Real-time updates через WebSocket
+class OutageWebSocket {
+    constructor() {
+        this.socket = null;
+        this.reconnectInterval = 5000;
+        this.maxReconnectAttempts = 10;
+        this.reconnectAttempts = 0;
+        this.listeners = new Set();
+    }
+    
+    connect() {
+        const wsUrl = 'wss://ваш-сервер.com/ws/outages';
+        // Або використовуйте публічний WebSocket сервіс
+        // const wsUrl = 'wss://stream.energymap.com.ua/outages';
+        
+        this.socket = new WebSocket(wsUrl);
+        
+        this.socket.onopen = () => {
+            console.log('WebSocket connected');
+            this.reconnectAttempts = 0;
+            this.notifyListeners('connected', null);
+        };
+        
+        this.socket.onmessage = (event) => {
+            try {
+                const data = JSON.parse(event.data);
+                this.notifyListeners('update', data);
+            } catch (error) {
+                console.error('Помилка парсингу WebSocket повідомлення:', error);
+            }
+        };
+        
+        this.socket.onclose = () => {
+            console.log('WebSocket disconnected');
+            this.notifyListeners('disconnected', null);
+            this.reconnect();
+        };
+        
+        this.socket.onerror = (error) => {
+            console.error('WebSocket помилка:', error);
+        };
+    }
+    
+    reconnect() {
+        if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+            console.error('Досягнуто максимальну кількість спроб перепідключення');
+            return;
+        }
+        
+        this.reconnectAttempts++;
+        console.log(`Спроба перепідключення ${this.reconnectAttempts}`);
+        
+        setTimeout(() => this.connect(), this.reconnectInterval);
+    }
+    
+    addListener(callback) {
+        this.listeners.add(callback);
+    }
+    
+    removeListener(callback) {
+        this.listeners.delete(callback);
+    }
+    
+    notifyListeners(event, data) {
+        this.listeners.forEach(callback => callback(event, data));
+    }
+    
+    disconnect() {
+        if (this.socket) {
+            this.socket.close();
+            this.socket = null;
+        }
+    }
+}
+
+// Використання WebSocket в додатку
+const outageWS = new OutageWebSocket();
+
+// Додаємо в app.js
+outageWS.addListener((event, data) => {
+    switch (event) {
+        case 'update':
+            // Оновлення даних в реальному часі
+            processRealTimeUpdate(data);
+            break;
+        case 'connected':
+            updateStatusIndicator('success', 'Підключено до реальних оновлень');
+            break;
+        case 'disconnected':
+            updateStatusIndicator('warning', 'Втрачено зв\'язок з сервером');
+            break;
+    }
+});
+
+function processRealTimeUpdate(data) {
+    // Оновлення конкретного регіону
+    if (data.region && data.status) {
+        if (outagesData[data.region]) {
+            outagesData[data.region].status = data.status;
+            outagesData[data.region].lastUpdate = new Date().toISOString();
+            
+            // Оновлення карти
+            updateMapWithOutages();
+            
+            // Сповіщення користувача
+            if (data.region === userRegion) {
+                showNotification(`Статус оновлено: ${getStatusText(data.status)}`);
+            }
+        }
+    }
+}
+// server.js - Повноцінний сервер агрегації даних
+const express = require('express');
+const cron = require('node-cron');
+const axios = require('axios');
+const app = express();
+
+// База даних для зберігання (проста in-memory)
+let outagesCache = {};
+let lastUpdated = null;
+
+// Завдання по розкладу: оновлення кожні 2 хвилини
+cron.schedule('*/2 * * * *', async () => {
+    console.log('Запуск оновлення даних...');
+    await updateAllOutages();
+});
+
+// Функція оновлення всіх даних
+async function updateAllOutages() {
+    try {
+        const sources = [
+            scrapeUkrenergo(),
+            fetchDtekAPI(),
+            fetchYasnoAPI(),
+            fetchRegionalData()
+        ];
+        
+        const results = await Promise.allSettled(sources);
+        
+        const allData = processResults(results);
+        outagesCache = allData;
+        lastUpdated = new Date();
+        
+        console.log('Дані оновлено успішно');
+        
+    } catch (error) {
+        console.error('Помилка оновлення даних:', error);
+    }
+}
+
+// API endpoint для клієнта
+app.get('/api/outages', (req, res) => {
+    res.json({
+        success: true,
+        data: outagesCache,
+        lastUpdated: lastUpdated,
+        timestamp: new Date().toISOString()
+    });
+});
+
+// WebSocket endpoint
+const WebSocket = require('ws');
+const wss = new WebSocket.Server({ port: 8080 });
+
+wss.on('connection', (ws) => {
+    console.log('Нове WebSocket з\'єднання');
+    
+    // Відправка поточних даних
+    ws.send(JSON.stringify({
+        type: 'init',
+        data: outagesCache
+    }));
+    
+    // Оновлення при зміні даних
+    const interval = setInterval(() => {
+        ws.send(JSON.stringify({
+            type: 'ping',
+            time: new Date().toISOString()
+        }));
+    }, 30000);
+    
+    ws.on('close', () => {
+        clearInterval(interval);
+        console.log('WebSocket з\'єднання закрито');
+    });
+});
+
+app.listen(3000, () => {
+    console.log('Сервер запущено на порті 3000');
+    // Первинне завантаження даних
+    updateAllOutages();
+});

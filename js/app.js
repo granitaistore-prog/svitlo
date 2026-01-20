@@ -6,5 +6,4 @@ document.addEventListener("DOMContentLoaded", () => {
   }).addTo(window.map);
 
   loadRegions();
-  setInterval(loadRegions, 120000); // оновлення кожні 2 хв
 });

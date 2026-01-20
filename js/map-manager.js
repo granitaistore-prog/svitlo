@@ -1,33 +1,25 @@
 let regionsLayer;
 
-async function loadRegions() {
-  const res = await fetch("data/ukraine-regions.json");
-  const geo = await res.json();
-
-  if (regionsLayer) map.removeLayer(regionsLayer);
-
-  regionsLayer = L.geoJSON(geo, {
-    style: feature => {
-      if (feature.properties.shapeISO === "UA-18") {
-        return {
-          color: "#000",
-          weight: 1,
-          fillColor: "#dc2626",
-          fillOpacity: 0.8
-        };
+function loadRegions() {
+  const testGeoJSON = {
+    "type": "FeatureCollection",
+    "features": [
+      {
+        "type": "Feature",
+        "properties": { "name": "Test" },
+        "geometry": {
+          "type": "Polygon",
+          "coordinates": [[[30,50],[32,50],[32,49],[30,49],[30,50]]]
+        }
       }
+    ]
+  };
 
-      return {
-        color: "#000",
-        weight: 1,
-        fillColor: "#444",
-        fillOpacity: 0.3
-      };
-    },
-    onEachFeature: (feature, layer) => {
-      if (feature.properties.shapeISO === "UA-18") {
-        layer.bindPopup("Житомирська область (тест фарбування)");
-      }
+  regionsLayer = L.geoJSON(testGeoJSON, {
+    style: {
+      color: "#000",
+      fillColor: "#dc2626",
+      fillOpacity: 0.7
     }
   }).addTo(map);
 }

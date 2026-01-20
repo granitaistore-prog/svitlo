@@ -3,7 +3,7 @@ async function loadOutageData() {
   const d = await r.json();
 
   return {
-    "Zhytomyr": {
+    "UA-18": { // ISO код Житомирської області
       color: d.currentStatus === "NO_POWER" ? "red" : "green",
       queue: d.queue,
       schedule: d.schedule,

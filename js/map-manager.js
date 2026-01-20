@@ -7,40 +7,39 @@ function getColorByStatus(status) {
   return "#999999";
 }
 
-function loadRegions() {
-  loadOutageData().then(outageData => {
-    fetch("data/ukraine-regions.json")
-      .then(r => r.json())
-      .then(geo => {
-        if (regionsLayer) map.removeLayer(regionsLayer);
+async function loadRegions() {
+  const outageData = await loadOutageData();
+  const res = await fetch("data/ukraine-regions.json");
+  const geo = await res.json();
 
-        regionsLayer = L.geoJSON(geo, {
-          style: feature => {
-            const iso = feature.properties.shapeISO;
-            const info = outageData[iso];
+  if (regionsLayer) map.removeLayer(regionsLayer);
 
-            return {
-              color: "#000",
-              weight: 1,
-              fillColor: info ? getColorByStatus(info.status) : "#999999",
-              fillOpacity: 0.7
-            };
-          },
-          onEachFeature: (feature, layer) => {
-            const iso = feature.properties.shapeISO;
-            const info = outageData[iso];
-            if (info) {
-              layer.bindPopup(`
-                <b>${info.region}</b><br>
-                Статус: ${
-                  info.status === "NO_POWER" ? "🔴 Немає світла" :
-                  info.status === "SCHEDULE" ? "🟡 За графіком" :
-                  "🟢 Світло є"
-                }
-              `);
-            }
+  regionsLayer = L.geoJSON(geo, {
+    style: feature => {
+      const iso = feature.properties.shapeISO;
+      const info = outageData[iso];
+
+      return {
+        color: "#000",
+        weight: 1,
+        fillColor: info ? getColorByStatus(info.status) : "#999",
+        fillOpacity: 0.75
+      };
+    },
+    onEachFeature: (feature, layer) => {
+      const iso = feature.properties.shapeISO;
+      const info = outageData[iso];
+
+      if (info) {
+        layer.bindPopup(`
+          <b>${info.region}</b><br>
+          Статус: ${
+            info.status === "NO_POWER" ? "🔴 Немає світла" :
+            info.status === "SCHEDULE" ? "🟡 За графіком" :
+            "🟢 Світло є"
           }
-        }).addTo(map);
-      });
-  });
+        `);
+      }
+    }
+  }).addTo(map);
 }

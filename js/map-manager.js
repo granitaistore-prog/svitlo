@@ -8,7 +8,7 @@ function getColorByStatus(status) {
 }
 
 async function loadRegions() {
-  const outageData = await loadOutageData(); // { "UA-01": {status, region}, ... }
+  const outageData = await loadOutageData();
   const res = await fetch("data/ukraine-regions.json");
   const geo = await res.json();
 

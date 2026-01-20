@@ -1,14 +1,14 @@
 let regionsLayer;
 
-function getColor(status) {
-  if (status === "red") return "#dc2626";
-  if (status === "green") return "#16a34a";
-  if (status === "yellow") return "#facc15";
+function getColorByStatus(status) {
+  if (status === "NO_POWER") return "#dc2626";   // 🔴
+  if (status === "SCHEDULE") return "#facc15";  // 🟡
+  if (status === "POWER_ON") return "#16a34a";  // 🟢
   return "#475569";
 }
 
 async function loadRegions() {
-  const outageData = await loadOutageData();
+  const outageData = await loadOutageData(); // { "UA-01": {status, region}, ... }
   const res = await fetch("data/ukraine-regions.json");
   const geo = await res.json();
 
@@ -17,29 +17,27 @@ async function loadRegions() {
   regionsLayer = L.geoJSON(geo, {
     style: feature => {
       const iso = feature.properties.shapeISO;
-      let fill = "#475569";
-
-      if (outageData && outageData[iso]) {
-        fill = getColor(outageData[iso].color);
-      }
+      const info = outageData[iso];
 
       return {
         color: "#000",
         weight: 1,
-        fillColor: fill,
+        fillColor: info ? getColorByStatus(info.status) : "#475569",
         fillOpacity: 0.75
       };
     },
     onEachFeature: (feature, layer) => {
       const iso = feature.properties.shapeISO;
+      const info = outageData[iso];
 
-      if (outageData && outageData[iso]) {
-        const info = outageData[iso];
+      if (info) {
         layer.bindPopup(`
-          <b>Житомирська область</b><br>
-          Черга: ${info.queue}<br>
-          Статус: ${info.currentStatus === "NO_POWER" ? "🔴 Немає світла" : "🟢 Світло є"}<br>
-          Графік: ${info.schedule}
+          <b>${info.region}</b><br>
+          Статус: ${
+            info.status === "NO_POWER" ? "🔴 Немає світла" :
+            info.status === "SCHEDULE" ? "🟡 За графіком" :
+            "🟢 Світло є"
+          }
         `);
       }
     }

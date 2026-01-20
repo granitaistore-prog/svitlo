@@ -72,3 +72,35 @@ async function loadRegions() {
 }
 
 }
+async function drawBaranivka() {
+  const geo = await loadBaranivkaBuildings();
+
+  L.geoJSON(geo, {
+    style: {
+      color: "#0ea5e9",
+      weight: 1,
+      fillOpacity: 0.2
+    },
+    onEachFeature: (feature, layer) => {
+      const tags = feature.properties.tags || {};
+      const street = tags["addr:street"];
+      const house = tags["addr:housenumber"];
+
+      if (street && house) {
+        layer.on("click", async () => {
+          const r = await fetch(`https://svitlo-ye-api.granit-ai-store.workers.dev/?city=Баранівка&street=${encodeURIComponent(street)}&house=${house}`);
+          const data = await r.json();
+
+          layer.bindPopup(`
+            <b>Баранівка</b><br>
+            ${street}, ${house}<br>
+            Черга: ${data.queue}<br>
+            Статус: ${data.currentStatus === "NO_POWER" ? "🔴 Немає світла" : "🟢 Світло є"}<br>
+            Зараз: ${data.nowInterval || "—"}<br>
+            Далі: ${data.nextInterval}
+          `).openPopup();
+        });
+      }
+    }
+  }).addTo(map);
+}

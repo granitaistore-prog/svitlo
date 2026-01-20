@@ -1,0 +1,32 @@
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #0b0f14;
+  color: #ffffff;
+}
+
+header {
+  padding: 10px;
+  background: #111827;
+  text-align: center;
+  font-size: 18px;
+}
+
+#status {
+  display: block;
+  font-size: 14px;
+  color: #9ca3af;
+}
+
+#map {
+  width: 100%;
+  height: calc(100vh - 110px);
+}
+
+footer {
+  padding: 8px;
+  text-align: center;
+  font-size: 12px;
+  background: #111827;
+  color: #9ca3af;
+}

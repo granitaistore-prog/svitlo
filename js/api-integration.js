@@ -1,4 +1,5 @@
 async function loadOutageData() {
   const r = await fetch("https://svitlo-ye-api.granit-ai-store.workers.dev/");
-  return await r.json(); // ключі = ISO області
+  const data = await r.json();
+  return data; // { "UA-18": {status, region}, ... }
 }

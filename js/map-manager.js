@@ -1,17 +1,15 @@
-let regionsLayer;
-
 function loadRegions() {
   fetch("data/ukraine-regions.json")
     .then(res => res.json())
     .then(data => {
-      regionsLayer = L.geoJSON(data, {
+      L.geoJSON(data, {
         style: {
-          color: "#3b82f6",
+          color: "#2563eb",
           weight: 1,
-          fillOpacity: 0.15
+          fillOpacity: 0.25
         },
         onEachFeature: (feature, layer) => {
-          layer.bindPopup("Область: " + feature.properties.name);
+          layer.bindPopup(feature.properties.name);
         }
       }).addTo(map);
     });

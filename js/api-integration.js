@@ -1,32 +1,18 @@
-const API = {
-  ukrenergo: "https://power-api.ukrenergo.ua/v1/regions" // проксі пізніше винесемо на сервер
-};
+const API_URL = "https://svitlo-ye-api.yourname.workers.dev";
 
 async function loadOutageData() {
   try {
-    const response = await fetch(API.ukrenergo);
+    const response = await fetch(
+      `${API_URL}?region=zhytomyr&city=baranivka&street=petliury&house=25`
+    );
     const data = await response.json();
 
-    /*
-      Формат нормалізуємо до:
-      {
-        "Київська": "green",
-        "Львівська": "yellow",
-        "Донецька": "red"
-      }
-    */
-
-    const normalized = {};
-
-    data.forEach(region => {
-      if (region.status === "NO_POWER") normalized[region.name] = "red";
-      else if (region.status === "SCHEDULE") normalized[region.name] = "yellow";
-      else normalized[region.name] = "green";
-    });
-
-    return normalized;
+    return {
+      "Житомирська": data.currentStatus === "NO_POWER" ? "red" :
+                     data.currentStatus === "SCHEDULE" ? "yellow" : "green"
+    };
   } catch (e) {
-    console.error("Помилка отримання даних:", e);
+    console.error("Помилка API:", e);
     return null;
   }
 }

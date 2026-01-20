@@ -1,23 +1,6 @@
 let regionsLayer;
 
-function getColor(status) {
-  if (status === "red") return "#dc2626";
-  if (status === "yellow") return "#facc15";
-  if (status === "green") return "#16a34a";
-  return "#475569";
-}
-
-function normalizeRegionName(name) {
-  if (!name) return "";
-  return name
-    .toLowerCase()
-    .replace("oblast", "")
-    .replace("область", "")
-    .trim();
-}
-
 async function loadRegions() {
-  const outageData = await loadOutageData();
   const res = await fetch("data/ukraine-regions.json");
   const geo = await res.json();
 
@@ -25,44 +8,26 @@ async function loadRegions() {
 
   regionsLayer = L.geoJSON(geo, {
     style: feature => {
-      const rawName = feature.properties.shapeName;
-      const regionKey = normalizeRegionName(rawName);
-
-      let statusColor = "#475569";
-
-      if (outageData) {
-        for (const key in outageData) {
-          if (regionKey.includes(normalizeRegionName(key))) {
-            statusColor = getColor(outageData[key].color);
-          }
-        }
+      if (feature.properties.shapeISO === "UA-18") {
+        return {
+          color: "#000",
+          weight: 1,
+          fillColor: "#dc2626",
+          fillOpacity: 0.8
+        };
       }
 
       return {
-        color: "#1f2933",
+        color: "#000",
         weight: 1,
-        fillColor: statusColor,
-        fillOpacity: 0.7
+        fillColor: "#444",
+        fillOpacity: 0.3
       };
     },
     onEachFeature: (feature, layer) => {
-      const rawName = feature.properties.shapeName;
-      const regionKey = normalizeRegionName(rawName);
-
-      let popup = `<b>${rawName}</b><br>`;
-
-      if (outageData) {
-        for (const key in outageData) {
-          if (regionKey.includes(normalizeRegionName(key))) {
-            const info = outageData[key];
-            popup += `Черга: ${info.queue}<br>`;
-            popup += `Статус: ${info.currentStatus === "NO_POWER" ? "🔴 Немає світла" : "🟢 Світло є"}<br>`;
-            popup += `Графік: ${info.schedule}`;
-          }
-        }
+      if (feature.properties.shapeISO === "UA-18") {
+        layer.bindPopup("Житомирська область (тест фарбування)");
       }
-
-      layer.bindPopup(popup);
     }
   }).addTo(map);
 }

@@ -6,5 +6,6 @@ document.addEventListener("DOMContentLoaded", () => {
   }).addTo(window.map);
 
   loadRegions();
+  drawBaranivka();
   setInterval(loadRegions, 120000); // кожні 2 хв
 });

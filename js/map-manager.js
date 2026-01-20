@@ -7,9 +7,17 @@ function getColor(status) {
   return "#475569";
 }
 
+function normalizeRegionName(name) {
+  if (!name) return "";
+  return name
+    .toLowerCase()
+    .replace("oblast", "")
+    .replace("область", "")
+    .trim();
+}
+
 async function loadRegions() {
   const outageData = await loadOutageData();
-
   const res = await fetch("data/ukraine-regions.json");
   const geo = await res.json();
 
@@ -17,28 +25,41 @@ async function loadRegions() {
 
   regionsLayer = L.geoJSON(geo, {
     style: feature => {
-      const name = feature.properties.name;
-      const info = outageData && outageData[name];
-      const color = info ? getColor(info.color) : "#475569";
+      const rawName = feature.properties.shapeName;
+      const regionKey = normalizeRegionName(rawName);
+
+      let statusColor = "#475569";
+
+      if (outageData) {
+        for (const key in outageData) {
+          if (regionKey.includes(normalizeRegionName(key))) {
+            statusColor = getColor(outageData[key].color);
+          }
+        }
+      }
 
       return {
         color: "#1f2933",
         weight: 1,
-        fillColor: color,
+        fillColor: statusColor,
         fillOpacity: 0.7
       };
     },
     onEachFeature: (feature, layer) => {
-      const name = feature.properties.name;
-      const info = outageData && outageData[name];
+      const rawName = feature.properties.shapeName;
+      const regionKey = normalizeRegionName(rawName);
 
-      let popup = `<b>${name}</b><br>`;
-      if (info) {
-        popup += `Черга: ${info.queue}<br>`;
-        popup += `Статус: ${info.currentStatus === "NO_POWER" ? "🔴 Немає світла" : "🟢 Світло є"}<br>`;
-        popup += `Графік: ${info.schedule}`;
-      } else {
-        popup += "Дані відсутні";
+      let popup = `<b>${rawName}</b><br>`;
+
+      if (outageData) {
+        for (const key in outageData) {
+          if (regionKey.includes(normalizeRegionName(key))) {
+            const info = outageData[key];
+            popup += `Черга: ${info.queue}<br>`;
+            popup += `Статус: ${info.currentStatus === "NO_POWER" ? "🔴 Немає світла" : "🟢 Світло є"}<br>`;
+            popup += `Графік: ${info.schedule}`;
+          }
+        }
       }
 
       layer.bindPopup(popup);

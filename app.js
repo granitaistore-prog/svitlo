@@ -560,3 +560,85 @@ function loadSavedTheme() {
 
 // Виклик завантаження теми при завантаженні сторінки
 loadSavedTheme();
+// Додамо до існуючого app.js
+
+// Імпортуємо API модуль (якщо використовуємо модулі)
+// import { OutageAPI } from './api-integration.js';
+
+// Або створюємо екземпляр глобально
+let outageAPI;
+
+// Оновлюємо функцію loadOutagesData
+async function loadOutagesData(forceUpdate = false) {
+    const statusIndicator = document.getElementById('globalStatus');
+    const statusText = statusIndicator.querySelector('.status-text');
+    
+    try {
+        statusText.textContent = 'Оновлення даних...';
+        
+        // Ініціалізація API
+        if (!outageAPI) {
+            outageAPI = new OutageAPI();
+        }
+        
+        // Отримання даних
+        if (isOnline || forceUpdate) {
+            // Отримання реальних даних
+            outagesData = await outageAPI.fetchAllOutages();
+            
+            // Перевірка здоров'я API
+            const apiHealth = await outageAPI.checkAPIHealth();
+            const availableAPIs = apiHealth.filter(api => api.available).length;
+            
+            updateStatusIndicator('success', 
+                `Дані оновлено (${availableAPIs}/${apiHealth.length} API доступні)`);
+        } else {
+            // Офлайн режим
+            outagesData = outageAPI.getCachedData() || outageAPI.getFallbackData();
+            updateStatusIndicator('warning', 'Офлайн. Використовуються кешовані дані');
+        }
+        
+        // Оновлення інтерфейсу
+        updateMapWithOutages();
+        updateStatistics();
+        updateLastUpdateTime();
+        
+    } catch (error) {
+        console.error('Помилка завантаження даних:', error);
+        
+        // Спробувати отримати кешовані дані
+        if (outageAPI) {
+            outagesData = outageAPI.getCachedData() || outageAPI.getFallbackData();
+            updateMapWithOutages();
+            updateStatistics();
+        }
+        
+        updateStatusIndicator('error', 'Помилка оновлення. Використовуються останні доступні дані');
+    }
+}
+
+// Додаємо нову функцію для показу інформації про API
+function showAPIHealthInfo() {
+    if (!outageAPI) return;
+    
+    outageAPI.checkAPIHealth().then(healthInfo => {
+        const available = healthInfo.filter(h => h.available).length;
+        const total = healthInfo.length;
+        
+        // Можна показати спливаюче повідомлення або оновити статус
+        if (available === 0) {
+            console.warn('Жодне API не доступне. Використовуються кешовані дані.');
+        }
+    });
+}
+
+// Оновлюємо ініціалізацію
+document.addEventListener('DOMContentLoaded', () => {
+    // ... існуючий код ...
+    
+    // Ініціалізація API
+    outageAPI = new OutageAPI();
+    
+    // Перевірка здоров'я API при запуску
+    setTimeout(showAPIHealthInfo, 3000);
+});

@@ -1,18 +1,24 @@
-const API_URL = "https://svitlo-ye-api.yourname.workers.dev";
+const API_URL = "https://svitlo-ye-api.granit-ai-store.workers.dev/";
 
 async function loadOutageData() {
   try {
-    const response = await fetch(
-      `${API_URL}?region=zhytomyr&city=baranivka&street=petliury&house=25`
-    );
-    const data = await response.json();
+    const r = await fetch(`${API_URL}?region=zhytomyr&city=Баранівка&street=Симона%20Петлюри&house=25`);
+    const d = await r.json();
+
+    const status =
+      d.currentStatus === "NO_POWER" ? "red" :
+      d.currentStatus === "POWER_ON" ? "green" : "yellow";
 
     return {
-      "Житомирська": data.currentStatus === "NO_POWER" ? "red" :
-                     data.currentStatus === "SCHEDULE" ? "yellow" : "green"
+      "Житомирська": {
+        color: status,
+        queue: d.queue,
+        schedule: d.schedule,
+        currentStatus: d.currentStatus
+      }
     };
   } catch (e) {
-    console.error("Помилка API:", e);
+    console.error("API error", e);
     return null;
   }
 }

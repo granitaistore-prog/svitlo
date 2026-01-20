@@ -1,228 +1,29 @@
 <!DOCTYPE html>
 <html lang="uk">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Світло Є | Карта відключень світла в Україні</title>
-    <meta name="description" content="Інтерактивна карта відключень електроенергії в Україні. Реальні дані, автооновлення, працює офлайн.">
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="style.css">
-    <link rel="manifest" href="manifest.json">
-    <link rel="icon" href="icons/icon-192.png" type="image/png">
-    <meta name="theme-color" content="#1a365d">
-    <!-- iOS метатеги для PWA -->
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Світло Є">
-    <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <meta charset="UTF-8">
+  <title>Світло Є</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#0b0f14">
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="css/style.css">
+
+  <!-- Leaflet -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 </head>
-<body class="dark-theme">
-    <div class="app-container">
-        <header class="app-header">
-            <div class="header-content">
-                <div class="logo-container">
-                    <div class="logo-icon">💡</div>
-                    <h1>Світло Є</h1>
-                </div>
-                <div class="header-controls">
-                    <button id="locationBtn" class="btn-icon" title="Знайти моє місцезнаходження">
-                        📍
-                    </button>
-                    <button id="themeToggle" class="btn-icon" title="Змінити тему">
-                        🌙
-                    </button>
-                    <button id="refreshBtn" class="btn-icon" title="Оновити дані">
-                        🔄
-                    </button>
-                </div>
-            </div>
-            
-            <div class="search-container">
-                <input type="text" id="searchInput" placeholder="Пошук населеного пункту...">
-                <button id="searchBtn" class="btn-primary">Пошук</button>
-            </div>
-            
-            <div class="status-container">
-                <div class="status-indicator" id="globalStatus">
-                    <span class="status-dot"></span>
-                    <span class="status-text">Оновлення даних...</span>
-                </div>
-                <div class="last-update" id="lastUpdate">
-                    Оновлено: --:--:--
-                </div>
-            </div>
-        </header>
+<body>
+  <header>
+    <h1>💡 Світло Є</h1>
+    <span id="status">Завантаження...</span>
+  </header>
 
-        <main class="app-main">
-            <div class="map-container">
-                <div id="map"></div>
-                <div class="map-controls">
-                    <div class="legend">
-                        <h3>Легенда карти:</h3>
-                        <div class="legend-item">
-                            <span class="legend-color" style="background-color: #ef4444;"></span>
-                            <span>Немає світла 🔴</span>
-                        </div>
-                        <div class="legend-item">
-                            <span class="legend-color" style="background-color: #f59e0b;"></span>
-                            <span>Можливі відключення 🟡</span>
-                        </div>
-                        <div class="legend-item">
-                            <span class="legend-color" style="background-color: #10b981;"></span>
-                            <span>Є світло 🟢</span>
-                        </div>
-                        <div class="legend-item">
-                            <span class="legend-color" style="background-color: #3b82f6;"></span>
-                            <span>За графіком 📅</span>
-                        </div>
-                    </div>
-                    <div class="zoom-controls">
-                        <button id="zoomIn" class="btn-icon">+</button>
-                        <button id="zoomOut" class="btn-icon">-</button>
-                    </div>
-                </div>
-            </div>
-            
-            <aside class="sidebar">
-                <div class="sidebar-section">
-                    <h2>Області України</h2>
-                    <div class="filters">
-                        <select id="regionFilter" class="filter-select">
-                            <option value="all">Всі області</option>
-                            <option value="kyiv">Київ та область</option>
-                            <option value="lviv">Львівська</option>
-                            <option value="kharkiv">Харківська</option>
-                            <option value="odesa">Одеська</option>
-                            <option value="dnipro">Дніпропетровська</option>
-                            <option value="donetsk">Донецька</option>
-                            <option value="zaporizhzhia">Запорізька</option>
-                            <option value="vinnytsia">Вінницька</option>
-                            <option value="zhytomyr">Житомирська</option>
-                            <option value="poltava">Полтавська</option>
-                            <option value="cherkasy">Черкаська</option>
-                            <option value="chernihiv">Чернігівська</option>
-                            <option value="sumy">Сумська</option>
-                            <option value="rivne">Рівненська</option>
-                            <option value="khmelnytskyi">Хмельницька</option>
-                            <option value="ternopil">Тернопільська</option>
-                            <option value="ivano-frankivsk">Івано-Франківська</option>
-                            <option value="kherson">Херсонська</option>
-                            <option value="mykolaiv">Миколаївська</option>
-                            <option value="chernivtsi">Чернівецька</option>
-                            <option value="zakarpattia">Закарпатська</option>
-                            <option value="volyn">Волинська</option>
-                            <option value="luhansk">Луганська</option>
-                        </select>
-                        
-                        <select id="statusFilter" class="filter-select">
-                            <option value="all">Всі статуси</option>
-                            <option value="no_power">Немає світла</option>
-                            <option value="possible">Можливі відключення</option>
-                            <option value="has_power">Є світло</option>
-                            <option value="scheduled">За графіком</option>
-                        </select>
-                    </div>
-                </div>
-                
-                <div class="sidebar-section">
-                    <h2>Поточний стан</h2>
-                    <div class="current-status" id="currentStatus">
-                        <div class="status-card">
-                            <div class="status-header">
-                                <h3>Ваш регіон:</h3>
-                                <span class="status-badge" id="userRegionStatus">Визначається...</span>
-                            </div>
-                            <p id="userLocationInfo">Визначаємо ваше місцезнаходження...</p>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="sidebar-section">
-                    <h2>Детальна інформація</h2>
-                    <div class="details-container" id="regionDetails">
-                        <p class="empty-details">Оберіть область на карті для детальної інформації</p>
-                    </div>
-                </div>
-                
-                <div class="sidebar-section">
-                    <h2>Статистика</h2>
-                    <div class="stats-container">
-                        <div class="stat-item">
-                            <span class="stat-label">Областей без світла:</span>
-                            <span class="stat-value" id="statNoPower">0</span>
-                        </div>
-                        <div class="stat-item">
-                            <span class="stat-label">З графіком відключень:</span>
-                            <span class="stat-value" id="statScheduled">0</span>
-                        </div>
-                        <div class="stat-item">
-                            <span class="stat-label">Зі світлом:</span>
-                            <span class="stat-value" id="statHasPower">0</span>
-                        </div>
-                        <div class="stat-item">
-                            <span class="stat-label">Всього областей:</span>
-                            <span class="stat-value" id="statTotal">24</span>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="install-prompt" id="installPrompt">
-                    <p>Встановіть додаток для офлайн-доступу</p>
-                    <button id="installBtn" class="btn-primary">Встановити</button>
-                </div>
-            </aside>
-        </main>
+  <div id="map"></div>
 
-        <footer class="app-footer">
-            <div class="footer-content">
-                <p>Дані оновлюються кожні 2 хвилини з офіційних джерел (Укренерго, Обленерго)</p>
-                <p>© 2023 Світло Є | Веб-додаток для моніторингу відключень електроенергії</p>
-                <div class="update-info">
-                    <span>Наступне оновлення: <span id="nextUpdate">2:00</span></span>
-                    <button id="forceUpdate" class="btn-small">Оновити зараз</button>
-                </div>
-            </div>
-        </footer>
-    </div>
+  <footer>
+    <span>Оновлення кожні 2 хв • Офіційні дані Укренерго</span>
+  </footer>
 
-    <!-- Leaflet JS -->
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="app.js"></script>
-    
-    <!-- Реєстрація Service Worker для PWA -->
-    <script>
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('service-worker.js')
-                    .then(registration => {
-                        console.log('ServiceWorker зареєстровано успішно: ', registration.scope);
-                    })
-                    .catch(error => {
-                        console.log('Помилка реєстрації ServiceWorker: ', error);
-                    });
-            });
-        }
-        
-        // Обробка події встановлення PWA
-        let deferredPrompt;
-        window.addEventListener('beforeinstallprompt', (e) => {
-            e.preventDefault();
-            deferredPrompt = e;
-            document.getElementById('installPrompt').style.display = 'block';
-        });
-        
-        document.getElementById('installBtn').addEventListener('click', () => {
-            if (deferredPrompt) {
-                deferredPrompt.prompt();
-                deferredPrompt.userChoice.then((choiceResult) => {
-                    if (choiceResult.outcome === 'accepted') {
-                        console.log('Користувач погодився встановити додаток');
-                    }
-                    deferredPrompt = null;
-                    document.getElementById('installPrompt').style.display = 'none';
-                });
-            }
-        });
-    </script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="js/app.js"></script>
 </body>
 </html>

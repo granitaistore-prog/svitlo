@@ -55,5 +55,20 @@ async function loadRegions() {
         `);
       }
     }
-  }).addTo(map);
+  })
+    if (iso === "UA-32") {
+  fetch("https://svitlo-ye-api.granit-ai-store.workers.dev/?region=UA-32&city=brovary&street=kyivska&house=10")
+    .then(r => r.json())
+    .then(user => {
+      layer.bindPopup(`
+        <b>Київська область</b><br>
+        📍 Адреса: Бровари, вул. Київська 10<br>
+        🔢 Черга: ${user.queue}<br>
+        ⚡ Статус: ${user.currentStatus === "NO_POWER" ? "🔴 Немає світла" : "🟢 Світло є"}<br>
+        ⏱ Зараз: ${user.nowInterval || "—"}<br>
+        ➡ Далі: ${user.nextInterval}
+      `);
+    });
+}
+
 }

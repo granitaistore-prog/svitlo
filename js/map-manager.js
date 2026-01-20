@@ -8,34 +8,40 @@ function getColor(status) {
 }
 
 async function loadRegions() {
-  const outageStatus = await loadOutageData();
+  const outageData = await loadOutageData();
 
-  fetch("data/ukraine-regions.json")
-    .then(res => res.json())
-    .then(data => {
-      regionsLayer = L.geoJSON(data, {
-        style: feature => {
-          const name = feature.properties.name;
-          const status = outageStatus ? outageStatus[name] : null;
-          return {
-            color: "#1f2933",
-            weight: 1,
-            fillColor: getColor(status),
-            fillOpacity: 0.7
-          };
-        },
-        onEachFeature: (feature, layer) => {
-          const name = feature.properties.name;
-          const status = outageStatus ? outageStatus[name] : "невідомо";
+  const res = await fetch("data/ukraine-regions.json");
+  const geo = await res.json();
 
-          let text = "Статус: ";
-          if (status === "red") text += "🔴 Немає світла";
-          else if (status === "yellow") text += "🟡 За графіком";
-          else if (status === "green") text += "🟢 Світло є";
-          else text += "Дані відсутні";
+  if (regionsLayer) map.removeLayer(regionsLayer);
 
-          layer.bindPopup(`<b>${name}</b><br>${text}`);
-        }
-      }).addTo(map);
-    });
+  regionsLayer = L.geoJSON(geo, {
+    style: feature => {
+      const name = feature.properties.name;
+      const info = outageData && outageData[name];
+      const color = info ? getColor(info.color) : "#475569";
+
+      return {
+        color: "#1f2933",
+        weight: 1,
+        fillColor: color,
+        fillOpacity: 0.7
+      };
+    },
+    onEachFeature: (feature, layer) => {
+      const name = feature.properties.name;
+      const info = outageData && outageData[name];
+
+      let popup = `<b>${name}</b><br>`;
+      if (info) {
+        popup += `Черга: ${info.queue}<br>`;
+        popup += `Статус: ${info.currentStatus === "NO_POWER" ? "🔴 Немає світла" : "🟢 Світло є"}<br>`;
+        popup += `Графік: ${info.schedule}`;
+      } else {
+        popup += "Дані відсутні";
+      }
+
+      layer.bindPopup(popup);
+    }
+  }).addTo(map);
 }

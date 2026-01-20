@@ -9,6 +9,11 @@ function getColorByStatus(status) {
 
 async function loadRegions() {
   const outageData = await loadOutageData();
+
+  // Дані по твоїй адресі з YASNO
+  const userResp = await fetch("https://svitlo-ye-api.granit-ai-store.workers.dev/?city=baranivka&street=petliury&house=25");
+  const user = await userResp.json();
+
   const res = await fetch("data/ukraine-regions.json");
   const geo = await res.json();
 
@@ -30,7 +35,16 @@ async function loadRegions() {
       const iso = feature.properties.shapeISO;
       const info = outageData[iso];
 
-      if (info) {
+      if (iso === "UA-18") {
+        layer.bindPopup(`
+          <b>Житомирська область</b><br>
+          📍 Твоя адреса: Баранівка, Симона Петлюри 25<br>
+          🔢 Черга: ${user.queue}<br>
+          ⚡ Статус: ${user.currentStatus === "NO_POWER" ? "🔴 Немає світла" : "🟢 Світло є"}<br>
+          ⏱ Зараз: ${user.nowInterval || "—"}<br>
+          ➡ Далі: ${user.nextInterval}
+        `);
+      } else if (info) {
         layer.bindPopup(`
           <b>${info.region}</b><br>
           Статус: ${
